@@ -10,21 +10,16 @@ async def get_html():
     url = body['url']
     
     try:
-        page = await load_page(url)
-        html = await scrape_html(page)
+        browser = await zd.start(headless=True)
+        page = await browser.get(url)
+        await page
+        await page.wait(2)
+        html = await page.get_content()
+        await browser.stop()
         return {'html': html}
     except Exception as e:
         return {'error': str(e)}, 500
 
-async def scrape_html(page: zd.Tab):
-    return await page.get_content()
-
-async def load_page(url: str):
-    browser = await zd.start(headless=True)
-    page = await browser.get(url)
-    await page.wait(2)
-
-    return page;
 
 
 

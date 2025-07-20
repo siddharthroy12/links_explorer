@@ -14,12 +14,18 @@
   let pendingUrls = $state<string[]>([]);
   let nodes = $state<any[]>([]);
   let links = $state<any[]>([]);
+  let linkSet = $state(new Set<string>()); // Add this to track unique links
   let svg: d3.Selection<SVGGElement, unknown, null, undefined>;
   let simulation: d3.Simulation<any, undefined>;
   let container: HTMLDivElement;
-  let maxDepth = $state(500);
+  let maxDepth = $state(50);
   let currentDepth = $state(0);
   let processedCount = $state(0);
+
+  // Calculate progress percentage
+  let progressPercentage = $derived(
+    maxDepth > 0 ? Math.min((currentDepth / maxDepth) * 100, 100) : 0
+  );
 
   async function fetchHTML(link: string) {
     try {
@@ -118,7 +124,10 @@
     // Update links
     const linkSelection = svg
       .selectAll(".link")
-      .data(links, (d: any) => `${d.source.id}-${d.target.id}`);
+      .data(
+        links,
+        (d: any) => `${d.source.id || d.source}-${d.target.id || d.target}`
+      );
 
     linkSelection
       .enter()
@@ -137,6 +146,14 @@
       .enter()
       .append("g")
       .attr("class", "node")
+      .style("cursor", "pointer")
+      .on("click", (event, d) => {
+        // Prevent click when dragging
+        if (event.defaultPrevented) return;
+
+        // Open URL in new tab
+        window.open(d.id, "_blank");
+      })
       .call(
         //@ts-ignore
         d3
@@ -146,12 +163,39 @@
           .on("end", dragended)
       );
 
+    // Add background circle for better visibility
     nodeEnter
       .append("circle")
-      .attr("r", (d: any) => (d.isRoot ? 15 : 8))
-      .attr("fill", (d: any) => (d.isRoot ? "#ff6b6b" : "#4ecdc4"))
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 2);
+      .attr("r", (d: any) => (d.isRoot ? 18 : 12))
+      .attr("fill", "#ffffff")
+      .attr("stroke", (d: any) => (d.isRoot ? "#ff6b6b" : "#4ecdc4"))
+      .attr("stroke-width", 3)
+      .attr("opacity", 0.9);
+
+    // Add image for each node
+    nodeEnter
+      .append("image")
+      .attr("x", (d: any) => (d.isRoot ? -16 : -10))
+      .attr("y", (d: any) => (d.isRoot ? -16 : -10))
+      .attr("width", (d: any) => (d.isRoot ? 32 : 20))
+      .attr("height", (d: any) => (d.isRoot ? 32 : 20))
+      .attr("href", (d: any) => {
+        try {
+          const url = new URL(d.id);
+          // Try to get favicon from the domain
+          return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=64`;
+        } catch {
+          // Fallback to a generic web icon
+          return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M16.36,14C16.44,13.34 16.5,12.68 16.5,12C16.5,11.32 16.44,10.66 16.36,10H19.74C19.9,10.64 20,11.31 20,12C20,12.69 19.9,13.36 19.74,14M14.59,19.56C15.19,18.45 15.65,17.25 15.97,16H18.92C17.96,17.65 16.43,18.93 14.59,19.56M14.34,14H9.66C9.56,13.34 9.5,12.68 9.5,12C9.5,11.32 9.56,10.65 9.66,10H14.34C14.43,10.65 14.5,11.32 14.5,12C14.5,12.68 14.43,13.34 14.34,14M12,19.96C11.17,18.76 10.5,17.43 10.09,16H13.91C13.5,17.43 12.83,18.76 12,19.96M8,8H5.08C6.03,6.34 7.57,5.06 9.4,4.44C8.8,5.55 8.35,6.75 8,8M5.08,16H8C8.35,17.25 8.8,18.45 9.4,19.56C7.57,18.93 6.03,17.65 5.08,16M4.26,14C4.1,13.36 4,12.69 4,12C4,11.31 4.1,10.64 4.26,10H7.64C7.56,10.66 7.5,11.32 7.5,12C7.5,12.68 7.56,13.34 7.64,14M12,4.03C12.83,5.23 13.5,6.57 13.91,8H10.09C10.5,6.57 11.17,5.23 12,4.03M18.92,8H15.97C15.65,6.75 15.19,5.55 14.59,4.44C16.43,5.07 17.96,6.34 18.92,8M12,2C6.47,2 2,6.5 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z'/%3E%3C/svg%3E";
+        }
+      })
+      .on("error", function () {
+        // Fallback if favicon fails to load
+        d3.select(this).attr(
+          "href",
+          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M16.36,14C16.44,13.34 16.5,12.68 16.5,12C16.5,11.32 16.44,10.66 16.36,10H19.74C19.9,10.64 20,11.31 20,12C20,12.69 19.9,13.36 19.74,14M14.59,19.56C15.19,18.45 15.65,17.25 15.97,16H18.92C17.96,17.65 16.43,18.93 14.59,19.56M14.34,14H9.66C9.56,13.34 9.5,12.68 9.5,12C9.5,11.32 9.56,10.65 9.66,10H14.34C14.43,10.65 14.5,11.32 14.5,12C14.5,12.68 14.43,13.34 14.34,14M12,19.96C11.17,18.76 10.5,17.43 10.09,16H13.91C13.5,17.43 12.83,18.76 12,19.96M8,8H5.08C6.03,6.34 7.57,5.06 9.4,4.44C8.8,5.55 8.35,6.75 8,8M5.08,16H8C8.35,17.25 8.8,18.45 9.4,19.56C7.57,18.93 6.03,17.65 5.08,16M4.26,14C4.1,13.36 4,12.69 4,12C4,11.31 4.1,10.64 4.26,10H7.64C7.56,10.66 7.5,11.32 7.5,12C7.5,12.68 7.56,13.34 7.64,14M12,4.03C12.83,5.23 13.5,6.57 13.91,8H10.09C10.5,6.57 11.17,5.23 12,4.03M18.92,8H15.97C15.65,6.75 15.19,5.55 14.59,4.44C16.43,5.07 17.96,6.34 18.92,8M12,2C6.47,2 2,6.5 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z'/%3E%3C/svg%3E"
+        );
+      });
 
     nodeEnter
       .append("text")
@@ -161,6 +205,7 @@
       .style("fill", "#ffffff")
       .text((d: any) => {
         try {
+          return d.id;
           const domain = new URL(d.id).hostname;
           return domain.length > 20 ? domain.substring(0, 17) + "..." : domain;
         } catch {
@@ -200,6 +245,8 @@
     if (!event.active) simulation.alphaTarget(0.3).restart();
     d.fx = d.x;
     d.fy = d.y;
+    // Prevent click event when starting drag
+    event.sourceEvent.preventDefault();
   }
 
   function dragged(event: any, d: any) {
@@ -227,15 +274,19 @@
       });
     }
 
-    // Add link if there's a source
-    if (
-      sourceUrl &&
-      !links.find((l) => l.source === sourceUrl && l.target === url)
-    ) {
-      links.push({
-        source: sourceUrl,
-        target: url,
-      });
+    // Add link if there's a source and it doesn't already exist
+    if (sourceUrl) {
+      const linkKey = `${sourceUrl}->${url}`;
+      const reverseLinkKey = `${url}->${sourceUrl}`;
+
+      // Check if this link (in either direction) already exists
+      if (!linkSet.has(linkKey) && !linkSet.has(reverseLinkKey)) {
+        linkSet.add(linkKey);
+        links.push({
+          source: sourceUrl,
+          target: url,
+        });
+      }
     }
 
     // Update visualization
@@ -271,6 +322,7 @@
     pendingUrls = [];
     nodes = [];
     links = [];
+    linkSet.clear(); // Clear the link tracking set
     currentDepth = 0;
     processedCount = 0;
 
@@ -332,6 +384,15 @@
         {isRunning ? "Stop" : "Go"}
       </button>
     </div>
+
+    <!-- Progress Indicator -->
+    {#if isRunning}
+      <progress
+        class="progress progress-primary w-full"
+        value={progressPercentage}
+        max="100"
+      ></progress>
+    {/if}
 
     <div class="w-full h-full relative overflow-hidden" bind:this={container}>
       {#if nodes.length === 0 && !isRunning}
