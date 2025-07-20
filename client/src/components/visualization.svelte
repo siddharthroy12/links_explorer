@@ -7,7 +7,7 @@
   }: {
     url: string;
   } = $props();
-
+  import { PUBLIC_API_URL } from "$env/static/public";
   let input = $state(url);
   let isRunning = $state(false);
   let visitedUrls = $state(new Set<string>());
@@ -29,7 +29,7 @@
 
   async function fetchHTML(link: string) {
     try {
-      const res = await fetch("/api/get_html", {
+      const res = await fetch(PUBLIC_API_URL + "/api/get_html", {
         method: "POST",
         body: JSON.stringify({
           url: link,
