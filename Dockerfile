@@ -10,6 +10,7 @@ RUN npm install
 
 # Copy client source and build
 COPY client/ ./
+RUN echo 'PUBLIC_API_URL="http://localhost:5000"' > .env
 RUN npm run build
 
 # Main image with Python and system dependencies

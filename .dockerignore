@@ -19,6 +19,7 @@ _.pyc
 _.pyo
 _.pyd
 .Python
+.env
 env
 venv
 .venv
