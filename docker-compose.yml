@@ -1,29 +1,23 @@
 services:
-  server:
-    build: ./server
+  app:
+    build: .
     ports:
-      - "5000:5000"
+      - "5000:80" # Map host port 5000 to container port 80 (nginx)
     environment:
       - FLASK_ENV=production
-      - FLASK_APP=main.py
-    networks:
-      - app-network
-
-  client:
-    build: ./client
-    ports:
-      - "3000:3000"
-    depends_on:
-      - server
-    environment:
-      - PUBLIC_API_URL=http://server:5000
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  node_modules:
-  python_packages:
+      - FLASK_APP=app.py
+    volumes:
+      # Optional: mount logs for easier debugging
+      - ./logs:/var/log
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost/api/health || curl -f http://localhost:5000/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped

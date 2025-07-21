@@ -36,3 +36,7 @@ _.log
 .mypy_cache
 .pytest_cache
 .DS_Store
+
+# logs
+
+logs
