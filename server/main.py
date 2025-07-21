@@ -10,7 +10,7 @@ async def get_html():
     url = body['url']
     
     try:
-        browser = await zd.start(headless=True)
+        browser = await zd.start(headless=True, no_sandbox=True)
         page = await browser.get(url)
         await page
         await page.wait(2)
