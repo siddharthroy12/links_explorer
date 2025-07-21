@@ -1,21 +1,19 @@
 # Multi-stage Dockerfile for SvelteKit + Flask
-FROM oven/bun:1-alpine AS client-builder
-
+FROM node:18-alpine AS client-builder
 WORKDIR /app/client
 
 # Copy client package files
-COPY client/package.json client/bun.lockb* ./
+COPY client/package.json client/package-lock.json* ./
 
 # Install client dependencies
-RUN bun install --frozen-lockfile
+RUN npm install
 
 # Copy client source and build
 COPY client/ ./
-RUN bun run build
+RUN npm run build
 
 # Main image with Python and system dependencies
 FROM python:3.11-slim
-
 WORKDIR /app
 
 # Install system dependencies for Chromium, Node.js, and other tools
@@ -41,9 +39,9 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Bun in the main image
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:$PATH"
+# Install Node.js in the main image
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs
 
 # Copy and install server dependencies
 COPY server/requirements.txt ./server/
