@@ -1,23 +1,6 @@
-# Multi-stage Dockerfile for SvelteKit + Flask
-FROM node:18-alpine AS client-builder
-WORKDIR /app/client
-
-# Copy client package files
-COPY client/package.json client/package-lock.json* ./
-
-# Install client dependencies
-RUN npm install
-
-# Copy client source and build
-COPY client/ ./
-RUN echo 'PUBLIC_API_URL="http://localhost:5000"' > .env
-RUN npm run build
-
 # Main image with Python and system dependencies
 FROM python:3.11-slim
-WORKDIR /app
 
-# Install system dependencies for Chromium, Node.js, and other tools
 RUN apt-get update && apt-get install -y \
     chromium \
     chromium-driver \
@@ -44,19 +27,28 @@ RUN apt-get update && apt-get install -y \
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs
 
+WORKDIR /app/client
+
+# Copy client package files
+COPY client/package.json client/package-lock.json* ./
+
+# Install client dependencies
+RUN npm install
+
+# Copy client source and build
+COPY client/ ./
+RUN echo 'PUBLIC_API_URL="http://localhost:5000"' > .env
+RUN npm run build
+
+WORKDIR /app
+
+
 # Copy and install server dependencies
 COPY server/requirements.txt ./server/
 RUN pip install --no-cache-dir -r server/requirements.txt
 
 # Copy server code
 COPY server/ ./server/
-
-# Copy built client from builder stage
-COPY --from=client-builder /app/client/build ./client/build
-COPY --from=client-builder /app/client/package.json ./client/
-
-# Copy client source (needed for package.json and any runtime files)
-COPY client/package.json ./client/
 
 # Configure Nginx for serving client
 COPY nginx.conf /etc/nginx/nginx.conf
