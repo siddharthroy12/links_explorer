@@ -8,6 +8,8 @@
     url: string;
   } = $props();
   import { PUBLIC_API_URL } from "$env/static/public";
+  import type { KeyboardEventHandler } from "svelte/elements";
+  import { fixUrl, isValidURL } from "../utils";
   let input = $state(url);
   let isRunning = $state(false);
   let visitedUrls = $state(new Set<string>());
@@ -301,16 +303,27 @@
       extractedLinks.slice(0, 5).forEach((link) => {
         // Limit to 5 links per page
         if (!visitedUrls.has(link) && !pendingUrls.includes(link)) {
+          if (link.endsWith("/")) {
+            link = link.slice(0, -1);
+          }
           pendingUrls.push(link);
         }
       });
     }
   }
 
-  async function startVisualization() {
-    if (!(input.startsWith("https://") || input.startsWith("http://"))) {
-      input = "https://" + input;
+  let fullUrl = $derived(fixUrl(input));
+
+  let isValidInput = $derived(isValidURL(fullUrl));
+
+  const handleEnterPress: KeyboardEventHandler<HTMLInputElement> = (event) => {
+    if (event.key === "Enter" && isValidInput) {
+      startVisualization();
     }
+  };
+
+  async function startVisualization() {
+    input = fullUrl;
     if (isRunning) {
       // Stop current process
       isRunning = false;
@@ -374,12 +387,14 @@
         bind:value={input}
         placeholder="Enter URL to visualize..."
         disabled={isRunning}
+        onkeydown={handleEnterPress}
       />
 
       <button
         class="btn btn-primary"
         class:btn-error={isRunning}
         onclick={startVisualization}
+        disabled={!isValidInput}
       >
         {isRunning ? "Stop" : "Go"}
       </button>
@@ -387,11 +402,7 @@
 
     <!-- Progress Indicator -->
     {#if isRunning}
-      <progress
-        class="progress progress-primary w-full"
-        value={progressPercentage}
-        max="100"
-      ></progress>
+      <progress class="progress progress-primary w-full"></progress>
     {/if}
 
     <div class="w-full h-full relative overflow-hidden" bind:this={container}>

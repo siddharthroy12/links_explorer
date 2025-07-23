@@ -1,33 +1,23 @@
 <script lang="ts">
+  import type { KeyboardEventHandler } from "svelte/elements";
   import Visualization from "../components/visualization.svelte";
+  import { fixUrl, isValidURL } from "../utils";
   let inputURL = $state("");
   let showVisualization = $state(false);
 
-  function fixUrl(url: string) {
-    if (!(url.startsWith("http://") || url.startsWith("https://"))) {
-      url = "https://" + url;
-    }
-    return url;
-  }
-
   let fullUrl = $derived(fixUrl(inputURL));
 
-  function isValidURL(url: string) {
-    if (!(url.startsWith("http://") || url.startsWith("https://"))) {
-      url = "https://" + url;
-    }
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
-  }
   let isValidInput = $derived(isValidURL(fullUrl));
 
   function startScaping() {
     showVisualization = true;
   }
+
+  const handleEnterPress: KeyboardEventHandler<HTMLInputElement> = (event) => {
+    if (event.key === "Enter" && isValidInput) {
+      startScaping();
+    }
+  };
 </script>
 
 {#if showVisualization}
@@ -50,6 +40,7 @@
           class="input sm:max-w-[300px] w-full"
           placeholder="Enter page URL"
           bind:value={inputURL}
+          onkeydown={handleEnterPress}
         />
         <button
           aria-label="Start Scraping"
